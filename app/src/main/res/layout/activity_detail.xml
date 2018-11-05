@@ -76,15 +76,12 @@
             android:text="@string/label_trailers"
             android:layout_marginTop="10dp"/>
 
-        <ScrollView
+        <ListView
+            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-            <LinearLayout
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:id="@+id/ll_detail_trailers"/>
-        </ScrollView>
+            android:layout_height="wrap_content"
+            android:id="@+id/lv_detail_trailers"
+            android:scrollbars="none"/>
 
         <TextView
             android:layout_width="match_parent"
@@ -96,11 +93,12 @@
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-            <LinearLayout
-                android:orientation="horizontal"
+
+            <ListView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:id="@+id/ll_detail_reviews"/>
+                android:id="@+id/lv_detail_reviews"
+                android:scrollbars="none"/>
         </ScrollView>
     </LinearLayout>
 </ScrollView>

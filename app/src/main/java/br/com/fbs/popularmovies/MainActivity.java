@@ -1,14 +1,22 @@
 package br.com.fbs.popularmovies;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.AsyncTaskLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -30,12 +38,15 @@ import java.util.List;
 import br.com.fbs.popularmovies.dto.MovieDto;
 import br.com.fbs.popularmovies.utils.NetworkUtils;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String>{
 
     private List<MovieDto> moviesDataFromJson;
     private GridView mGridView;
     private ProgressBar progressBarLoading;
     private TextView textViewError;
+
+    private static final int QUERY_LOADER = 86;
+    private static final String FILM_QUERY = "FILM_QUERY";
 
 
     @Override
@@ -80,11 +91,19 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
             snackbar.show();
-
             return;
         }
 
-        new FilmQueryTask().execute(searchUrl);
+        Bundle queryBundle = new Bundle();
+        queryBundle.putString(FILM_QUERY, searchUrl.toString());
+
+        LoaderManager loaderManager = getSupportLoaderManager();
+        Loader<String> loader = loaderManager.getLoader(QUERY_LOADER);
+        if (loader == null) {
+            loaderManager.initLoader(QUERY_LOADER, queryBundle, this);
+        } else {
+            loaderManager.restartLoader(QUERY_LOADER, queryBundle, this);
+        }
     }
 
     private boolean hasConecction() {
@@ -133,42 +152,59 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    public class FilmQueryTask extends AsyncTask<URL, Void, String> {
+    @SuppressLint("StaticFieldLeak")
+    @NonNull
+    @Override
+    public Loader<String> onCreateLoader(int id, @Nullable final Bundle args) {
+        return new AsyncTaskLoader<String>(this) {
+            @Override
+            protected void onStartLoading() {
+                Log.i("PopularMovies", "Iniciando carregamento no background");
+                if (args == null) {
+                    return;
+                }
+                progressBarLoading.setVisibility(View.VISIBLE);
+                forceLoad();
+            }
 
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-            progressBarLoading.setVisibility(View.VISIBLE);
-        }
+            @Nullable
+            @Override
+            public String loadInBackground() {
+                String searchUrl = args.getString(FILM_QUERY);
+                if (searchUrl == null || TextUtils.isEmpty(searchUrl)) {
+                    return null;
+                }
+                try {
+                    URL urlForFilms = new URL(searchUrl);
+                    return NetworkUtils.getResponseFromHttpUrl(urlForFilms);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+            }
+        };
+    }
 
-        @Override
-        protected String doInBackground(URL... params) {
-            URL searchUrl = params[0];
-            String searchResults = null;
+    @Override
+    public void onLoadFinished(@NonNull Loader<String> loader, String data) {
+        Log.i("PopularMovies", "Finalizando carregamento background");
+        progressBarLoading.setVisibility(View.INVISIBLE);
+        if (data != null && !data.equals("")) {
+            showGridFilms();
             try {
-                searchResults = NetworkUtils.getResponseFromHttpUrl(searchUrl);
-            } catch (IOException e) {
+                moviesDataFromJson = getMoviesDataFromJson(data);
+                mGridView.setAdapter(new ImageAdapter(MainActivity.this, moviesDataFromJson));
+            } catch (JSONException e) {
                 e.printStackTrace();
             }
-            return searchResults;
+        } else {
+            showErrorMessage();
         }
+    }
 
-        @Override
-        protected void onPostExecute(String searchResults) {
-            progressBarLoading.setVisibility(View.INVISIBLE);
-            if (searchResults != null && !searchResults.equals("")) {
-                showGridFilms();
-                try {
-                    moviesDataFromJson = getMoviesDataFromJson(searchResults);
-                    mGridView.setAdapter(new ImageAdapter(MainActivity.this, moviesDataFromJson));
+    @Override
+    public void onLoaderReset(@NonNull Loader<String> loader) {
 
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                showErrorMessage();
-            }
-        }
     }
 
     private List<MovieDto> getMoviesDataFromJson(String receiptJson) throws JSONException {
@@ -182,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
 
             JSONObject movieInfo = resultsArray.getJSONObject(i);
 
+            movieDto.setId(movieInfo.optString("id"));
             movieDto.setTitle(movieInfo.optString("title"));
             movieDto.setPosterPath(movieInfo.optString("poster_path"));
             movieDto.setSynopsis(movieInfo.optString("overview"));

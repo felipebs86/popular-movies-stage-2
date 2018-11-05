@@ -17,13 +17,48 @@ import br.com.fbs.popularmovies.BuildConfig;
 
 public class NetworkUtils {
     private final static String BASE_MOVIE_URL = "https://api.themoviedb.org/3/movie/";
+    private final static String SUFFIX_TRAILERS = "/videos";
+    private final static String SUFFIX_REVIEWS = "/reviews";
     private final static String PARAM_LANGUAGE = "language";
     private final static String LANGUAGE_PT_BR = "pt-BR";
+    private final static String LANGUAGE_EN_US = "en-US";
     private final static String PARAM_KEY = "api_key";
     private final static String API_KEY = BuildConfig.API_KEY;
 
     public static URL buildUrlForFilms(String query) {
         Uri builtUri = Uri.parse(BASE_MOVIE_URL + query).buildUpon()
+                .appendQueryParameter(PARAM_KEY, API_KEY)
+                .appendQueryParameter(PARAM_LANGUAGE, LANGUAGE_PT_BR)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(builtUri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+    public static URL buildUrlForTrailers(String query) {
+        Uri builtUri = Uri.parse(BASE_MOVIE_URL + query + SUFFIX_TRAILERS).buildUpon()
+                .appendQueryParameter(PARAM_KEY, API_KEY)
+                .appendQueryParameter(PARAM_LANGUAGE, LANGUAGE_EN_US)
+                .build();
+
+        URL url = null;
+        try {
+            url = new URL(builtUri.toString());
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
+
+        return url;
+    }
+
+    public static URL buildUrlForReviews(String query) {
+        Uri builtUri = Uri.parse(BASE_MOVIE_URL + query + SUFFIX_REVIEWS).buildUpon()
                 .appendQueryParameter(PARAM_KEY, API_KEY)
                 .appendQueryParameter(PARAM_LANGUAGE, LANGUAGE_PT_BR)
                 .build();

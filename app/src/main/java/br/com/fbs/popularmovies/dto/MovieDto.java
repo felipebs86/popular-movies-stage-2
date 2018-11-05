@@ -8,6 +8,7 @@ import android.os.Parcelable;
  */
 
 public class MovieDto implements Parcelable {
+    private String mId;
     private String mTitle;
     private String mPosterPath;
     private String mSynopsis;
@@ -27,6 +28,7 @@ public class MovieDto implements Parcelable {
             mVoteAverage = in.readDouble();
         }
         mReleaseDate = in.readString();
+        mId = in.readString();
     }
 
     public static final Creator<MovieDto> CREATOR = new Creator<MovieDto>() {
@@ -92,5 +94,14 @@ public class MovieDto implements Parcelable {
             dest.writeDouble(mVoteAverage);
         }
         dest.writeString(mReleaseDate);
+        dest.writeString(mId);
+    }
+
+    public String getId() {
+        return mId;
+    }
+
+    public void setId(String id) {
+        mId = id;
     }
 }
