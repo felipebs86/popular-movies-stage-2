@@ -1,6 +1,10 @@
 package br.com.fbs.popularmovies;
 
 import android.annotation.SuppressLint;
+import android.arch.lifecycle.Observer;
+import android.arch.lifecycle.ViewModel;
+import android.arch.lifecycle.ViewModelProvider;
+import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -33,10 +37,15 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
+import br.com.fbs.popularmovies.data.AppDatabase;
 import br.com.fbs.popularmovies.dto.MovieDto;
+import br.com.fbs.popularmovies.model.FavoriteMovie;
 import br.com.fbs.popularmovies.utils.NetworkUtils;
+import br.com.fbs.popularmovies.utils.ThreadExecutor;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String>{
 
@@ -44,6 +53,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private GridView mGridView;
     private ProgressBar progressBarLoading;
     private TextView textViewError;
+    private AppDatabase mDatabase;
+    private Executor executor;
+
+    private List<FavoriteMovie> favoriteMovies;
 
     private static final int QUERY_LOADER = 86;
     private static final String FILM_QUERY = "FILM_QUERY";
@@ -57,6 +70,12 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mGridView = findViewById(R.id.gv_movies);
         progressBarLoading = findViewById(R.id.pb_loading);
         textViewError = findViewById(R.id.tv_error_message);
+        favoriteMovies = new ArrayList<FavoriteMovie>();
+
+        mDatabase = AppDatabase.getDatabase(this);
+        executor = new ThreadExecutor();
+        
+        setupViewModel();
 
         SharedPreferences sharedPreferences = getSharedPreferences(getString(R.string.preference_sort),
                 Context.MODE_PRIVATE);
@@ -66,6 +85,29 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         mGridView.setOnItemClickListener(movieClickListener);
 
+    }
+
+    private void setupViewModel() {
+        MainViewModel mainViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
+        mainViewModel.getFavoriteMovies().observe(this, new Observer<List<FavoriteMovie>>() {
+            @Override
+            public void onChanged(@Nullable List<FavoriteMovie> favorites) {
+                if (favorites.size() > 0) {
+                    favoriteMovies.clear();
+                    favoriteMovies = favorites;
+
+                }
+                //makeFilmQuery("favorites");
+            }
+        });
+    }
+
+    private void clearFavoriteList() {
+        if (favoriteMovies != null) {
+            favoriteMovies.clear();
+        } else {
+            favoriteMovies = new ArrayList<FavoriteMovie>();
+        }
     }
 
     private final GridView.OnItemClickListener movieClickListener = new GridView.OnItemClickListener() {
@@ -149,7 +191,23 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             makeFilmQuery(endpoint);
         }
 
+        if (id == R.id.action_display_favorites) {
+            displayFavorites();
+        }
+
         return super.onOptionsItemSelected(item);
+    }
+
+    private void displayFavorites() {
+        List<MovieDto> movieDtos = new ArrayList<>();
+        for (FavoriteMovie favoriteMovie : favoriteMovies) {
+            Log.i("WTF", favoriteMovie.posterPath);
+            MovieDto teste = MovieDto.MovieDtoFrom(favoriteMovie);
+            Log.i("WTF", teste.getPosterPath());
+            movieDtos.add(MovieDto.MovieDtoFrom(favoriteMovie));
+        }
+
+        mGridView.setAdapter(new ImageAdapter(MainActivity.this, movieDtos));
     }
 
     @SuppressLint("StaticFieldLeak")

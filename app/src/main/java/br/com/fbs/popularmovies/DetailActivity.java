@@ -3,6 +3,7 @@ package br.com.fbs.popularmovies;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
@@ -16,10 +17,14 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -36,11 +41,15 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
+import br.com.fbs.popularmovies.data.AppDatabase;
 import br.com.fbs.popularmovies.dto.MovieDto;
 import br.com.fbs.popularmovies.dto.ReviewDto;
 import br.com.fbs.popularmovies.dto.TrailerDto;
+import br.com.fbs.popularmovies.model.FavoriteMovie;
 import br.com.fbs.popularmovies.utils.NetworkUtils;
+import br.com.fbs.popularmovies.utils.ThreadExecutor;
 
 public class DetailActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String> {
 
@@ -53,11 +62,19 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
     private ImageView poster;
     private ListView trailersList;
     private ListView reviewsList;
+    private boolean isFavorited;
+    private Button favoriteButton;
+
+    private AppDatabase mDatabase;
+
+    private Executor executor;
 
     private static final int QUERY_TRAILER_LOADER = 91;
     private static final String FILM_TRAILER_QUERY = "FILM_TRAILER_QUERY";
     private static final int QUERY_REVIEWS_LOADER = 10;
     private static final String FILM_REVIEWS_QUERY = "FILM_REVIEWS_QUERY";
+
+    private static final String ENDPOINT_IMAGE = "https://image.tmdb.org/t/p/w185";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +88,10 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
         poster = findViewById(R.id.iv_detail_poster);
         trailersList = findViewById(R.id.lv_detail_trailers);
         reviewsList = findViewById(R.id.lv_detail_reviews);
+        favoriteButton = findViewById(R.id.favorite_b);
 
+        mDatabase = AppDatabase.getDatabase(this);
+        executor = new ThreadExecutor();
 
         final Intent intent = getIntent();
         if (intent.hasExtra(INTENT_EXTRAS)) {
@@ -85,9 +105,11 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
             synopsis.setText(movieDto.getSynopsis());
 
             Picasso.with(this)
-                    .load(movieDto.getPosterPath())
+                    .load(ENDPOINT_IMAGE + movieDto.getPosterPath())
                     .resize(185, 278)
                     .into(poster);
+
+            isFavoriteFilm();
 
             makeDetailsQuery(movieDto.getId());
         }
@@ -98,6 +120,52 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
                 TrailerDto trailerDto = (TrailerDto) parent.getItemAtPosition(position);
                 Intent intentTrailer = new Intent(Intent.ACTION_VIEW, Uri.parse(trailerDto.linkForTrailer()));
                 getApplicationContext().startActivity(intentTrailer);
+            }
+        });
+
+        favoriteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!isFavorited) {
+                    Toast.makeText(DetailActivity.this, "Adicionado aos favoritos", Toast.LENGTH_SHORT).show();
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.i("PopularMovies", "Inserindo nos favoritos o filme id: " + movieDto.getId());
+                            mDatabase.movieDao().insert(FavoriteMovie.favoriteMovieFrom(movieDto));
+                        }
+                    });
+                    favoriteButton.setText(R.string.remove_to_favorite);
+                    isFavorited = true;
+                } else {
+                    Toast.makeText(DetailActivity.this, "Removido dos favoritos", Toast.LENGTH_SHORT).show();
+                    executor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.i("PopularMovies", "Deletando dos favoritos o filme id: " + movieDto.getId());
+                            mDatabase.movieDao().delete(FavoriteMovie.favoriteMovieFrom(movieDto));
+                        }
+                    });
+                    favoriteButton.setText(R.string.add_to_favorite);
+                    isFavorited = false;
+                }
+            }
+        });
+    }
+
+    private void isFavoriteFilm() {
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                FavoriteMovie favoriteMovie = mDatabase.movieDao().getFavoriteMovieById(movieDto.getId());
+
+                if (favoriteMovie != null){
+                    favoriteButton.setText(R.string.remove_to_favorite);
+                    isFavorited = true;
+                } else {
+                    favoriteButton.setText(R.string.add_to_favorite);
+                    isFavorited = false;
+                }
             }
         });
     }
@@ -198,7 +266,6 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
 
                     ArrayAdapter<ReviewDto> reviewDtoArrayAdapter = new ArrayAdapter<ReviewDto>(getApplicationContext(), android.R.layout.simple_list_item_1, reviewsDtoList);
                     reviewsList.setAdapter(reviewDtoArrayAdapter);
-                    //setListViewHeightBasedOnItems(reviewsList);
 
                 } catch (JSONException e) {
                     e.printStackTrace();

@@ -1,6 +1,7 @@
 package br.com.fbs.popularmovies;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -19,6 +20,7 @@ import br.com.fbs.popularmovies.dto.MovieDto;
 class ImageAdapter extends BaseAdapter {
     private final Context mContext;
     private final List<MovieDto> mMovies;
+    private static final String ENDPOINT_IMAGE = "https://image.tmdb.org/t/p/w185";
 
     public ImageAdapter(Context context, List<MovieDto> movies) {
         mContext = context;
@@ -60,7 +62,7 @@ class ImageAdapter extends BaseAdapter {
         }
 
         Picasso.with(mContext)
-                .load(mMovies.get(position).getPosterPath())
+                .load(ENDPOINT_IMAGE + mMovies.get(position).getPosterPath())
                 .resize(185, 278)
                 .into(imageView);
 

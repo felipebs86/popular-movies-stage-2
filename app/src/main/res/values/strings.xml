@@ -2,6 +2,7 @@
     <string name="app_name">Popular Movies</string>
     <string name="top_rated">Top Rated</string>
     <string name="most_popular">Most Popular</string>
+    <string name="favorites">Favorites</string>
     <string name="description_poster">poster</string>
     <string name="preference_sort">preferenceSort</string>
     <string name="sort_popular">popular</string>
@@ -12,4 +13,7 @@
     <string name="label_synopsis">Sinopse do filme:</string>
     <string name="label_trailers">Trailers:</string>
     <string name="label_reviews">Avaliações:</string>
+    <string name="add_to_favorite">Adicionar aos favoritos</string>
+    <string name="remove_to_favorite">Remover dos favoritos</string>
+    <string name="remove_of_favorites">Remover dos favoritos</string>
 </resources>

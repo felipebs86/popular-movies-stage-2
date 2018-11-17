@@ -3,6 +3,8 @@ package br.com.fbs.popularmovies.dto;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import br.com.fbs.popularmovies.model.FavoriteMovie;
+
 /**
  * Created by felipe on 21/09/18.
  */
@@ -64,7 +66,7 @@ public class MovieDto implements Parcelable {
     }
 
     public String getPosterPath() {
-        return String.format("%s%s", "https://image.tmdb.org/t/p/w185", mPosterPath);
+        return mPosterPath;
     }
 
     public String getSynopsis() {
@@ -103,5 +105,16 @@ public class MovieDto implements Parcelable {
 
     public void setId(String id) {
         mId = id;
+    }
+
+    public static MovieDto MovieDtoFrom(FavoriteMovie favoriteMovie) {
+        MovieDto movieDto = new MovieDto();
+        movieDto.setId(favoriteMovie.movieId);
+        movieDto.setTitle(favoriteMovie.movieTitle);
+        movieDto.setPosterPath(favoriteMovie.posterPath);
+        movieDto.setSynopsis(favoriteMovie.plotSynopsis);
+        movieDto.setVoteAverage(Double.valueOf(favoriteMovie.userRating));
+        movieDto.setReleaseDate(favoriteMovie.releaseDate);
+        return movieDto;
     }
 }
