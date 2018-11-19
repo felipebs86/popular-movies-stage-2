@@ -2,15 +2,12 @@ package br.com.fbs.popularmovies;
 
 import android.annotation.SuppressLint;
 import android.arch.lifecycle.Observer;
-import android.arch.lifecycle.ViewModel;
-import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
@@ -37,15 +34,12 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Executor;
 
-import br.com.fbs.popularmovies.data.AppDatabase;
 import br.com.fbs.popularmovies.dto.MovieDto;
 import br.com.fbs.popularmovies.model.FavoriteMovie;
+import br.com.fbs.popularmovies.utils.JsonUtils;
 import br.com.fbs.popularmovies.utils.NetworkUtils;
-import br.com.fbs.popularmovies.utils.ThreadExecutor;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String>{
 
@@ -53,13 +47,14 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private GridView mGridView;
     private ProgressBar progressBarLoading;
     private TextView textViewError;
-    private AppDatabase mDatabase;
-    private Executor executor;
 
     private List<FavoriteMovie> favoriteMovies;
 
     private static final int QUERY_LOADER = 86;
     private static final String FILM_QUERY = "FILM_QUERY";
+    private static final String PREFERENCE_TOP_RATED = "top_rated";
+    private static final String PREFERENCE_POPULAR = "popular";
+    private static final String PREFERENCE_FAVORITE = "favorite";
 
 
     @Override
@@ -72,9 +67,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         textViewError = findViewById(R.id.tv_error_message);
         favoriteMovies = new ArrayList<FavoriteMovie>();
 
-        mDatabase = AppDatabase.getDatabase(this);
-        executor = new ThreadExecutor();
-        
         setupViewModel();
 
         SharedPreferences sharedPreferences = getSharedPreferences(getString(R.string.preference_sort),
@@ -88,6 +80,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private void setupViewModel() {
+
         MainViewModel mainViewModel = ViewModelProviders.of(this).get(MainViewModel.class);
         mainViewModel.getFavoriteMovies().observe(this, new Observer<List<FavoriteMovie>>() {
             @Override
@@ -97,17 +90,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                     favoriteMovies = favorites;
 
                 }
-                //makeFilmQuery("favorites");
             }
         });
-    }
-
-    private void clearFavoriteList() {
-        if (favoriteMovies != null) {
-            favoriteMovies.clear();
-        } else {
-            favoriteMovies = new ArrayList<FavoriteMovie>();
-        }
     }
 
     private final GridView.OnItemClickListener movieClickListener = new GridView.OnItemClickListener() {
@@ -116,17 +100,22 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             MovieDto movieDto = (MovieDto) parent.getItemAtPosition(position);
 
             Intent intent = new Intent(getApplicationContext(), DetailActivity.class);
-            intent.putExtra("movieDetails", movieDto);
+            intent.putExtra(getString(R.string.intent_details), movieDto);
             startActivity(intent);
         }
     };
 
     private void makeFilmQuery(final String sort) {
+        if (PREFERENCE_FAVORITE.equals(sort)) {
+            displayFavorites();
+            return;
+        }
+
         URL searchUrl = NetworkUtils.buildUrlForFilms(sort);
         if (!hasConecction()) {
             View view = findViewById(R.id.gv_movies);
             Snackbar snackbar = Snackbar.make(view, getString(R.string.error_message), Snackbar.LENGTH_INDEFINITE);
-            snackbar.setAction("Recarregar", new View.OnClickListener() {
+            snackbar.setAction(R.string.reload, new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     makeFilmQuery(sort);
@@ -176,7 +165,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 Context.MODE_PRIVATE);
 
         if (id == R.id.action_top_rated) {
-            String endpoint = "top_rated";
+            String endpoint = PREFERENCE_TOP_RATED;
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putString(getString(R.string.preference_sort), endpoint);
             editor.apply();
@@ -184,7 +173,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         }
 
         if (id == R.id.action_most_popular) {
-            String endpoint = "popular";
+            String endpoint = PREFERENCE_POPULAR;
             SharedPreferences.Editor editor = sharedPreferences.edit();
             editor.putString(getString(R.string.preference_sort), endpoint);
             editor.apply();
@@ -192,6 +181,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         }
 
         if (id == R.id.action_display_favorites) {
+            SharedPreferences.Editor editor = sharedPreferences.edit();
+            editor.putString(getString(R.string.preference_sort), PREFERENCE_FAVORITE);
+            editor.apply();
             displayFavorites();
         }
 
@@ -201,9 +193,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private void displayFavorites() {
         List<MovieDto> movieDtos = new ArrayList<>();
         for (FavoriteMovie favoriteMovie : favoriteMovies) {
-            Log.i("WTF", favoriteMovie.posterPath);
-            MovieDto teste = MovieDto.MovieDtoFrom(favoriteMovie);
-            Log.i("WTF", teste.getPosterPath());
             movieDtos.add(MovieDto.MovieDtoFrom(favoriteMovie));
         }
 
@@ -250,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         if (data != null && !data.equals("")) {
             showGridFilms();
             try {
-                moviesDataFromJson = getMoviesDataFromJson(data);
+                moviesDataFromJson = JsonUtils.getMoviesDataFromJson(data);
                 mGridView.setAdapter(new ImageAdapter(MainActivity.this, moviesDataFromJson));
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -263,29 +252,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onLoaderReset(@NonNull Loader<String> loader) {
 
-    }
-
-    private List<MovieDto> getMoviesDataFromJson(String receiptJson) throws JSONException {
-        JSONObject moviesJson = new JSONObject(receiptJson);
-        JSONArray resultsArray = moviesJson.getJSONArray("results");
-
-        List<MovieDto> movieDtos = new ArrayList<>();
-
-        for (int i = 0; i < resultsArray.length(); i++) {
-            MovieDto movieDto = new MovieDto();
-
-            JSONObject movieInfo = resultsArray.getJSONObject(i);
-
-            movieDto.setId(movieInfo.optString("id"));
-            movieDto.setTitle(movieInfo.optString("title"));
-            movieDto.setPosterPath(movieInfo.optString("poster_path"));
-            movieDto.setSynopsis(movieInfo.optString("overview"));
-            movieDto.setVoteAverage(movieInfo.optDouble("vote_average"));
-            movieDto.setReleaseDate(movieInfo.optString("release_date"));
-            movieDtos.add(movieDto);
-        }
-
-        return movieDtos;
     }
 
     private void showGridFilms() {

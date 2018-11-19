@@ -195,26 +195,19 @@ public class DetailActivity extends AppCompatActivity implements LoaderManager.L
                     return null;
                 }
 
-                if (searchUrlTrailers != null && !TextUtils.isEmpty(searchUrlTrailers)) {
-                    try {
+                try{
+                    if (searchUrlTrailers != null && !TextUtils.isEmpty(searchUrlTrailers)) {
                         URL urlForTrailers = new URL(searchUrlTrailers);
                         return NetworkUtils.getResponseFromHttpUrl(urlForTrailers);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        return null;
                     }
-                }
-
-                if (searchUrlReviews != null && !TextUtils.isEmpty(searchUrlReviews)) {
-                    try {
+                    if (searchUrlReviews != null && !TextUtils.isEmpty(searchUrlReviews)) {
                         URL urlForReviews = new URL(searchUrlReviews);
                         return NetworkUtils.getResponseFromHttpUrl(urlForReviews);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        return null;
                     }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return null;
                 }
-
                 return null;
             }
         };

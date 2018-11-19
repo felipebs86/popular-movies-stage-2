@@ -29,8 +29,8 @@ class TrailerAdapter extends BaseAdapter {
 
     @Override
     public int getCount() {
-        if (mTrailer == null || mTrailer.size() == 0) {
-            return -1;
+        if (mTrailer == null ){
+            return 0;
         }
 
         return mTrailer.size();
